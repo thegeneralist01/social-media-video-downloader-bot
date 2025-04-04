@@ -31,11 +31,17 @@ async fn main() -> Result<()> {
         if let Some(text) = msg.text() {
             if text.to_lowercase() == "/start" {
                 bot.send_message(msg.chat.id, "Send a social media video link to download it!\nCurrently, the following social medias are supported: YouTube, X (twitter).").await.ok();
-            } else if URL_WHITELIST.iter().any(|url| text.starts_with(url)) {
+            } else if (text.starts_with("!") && URL_WHITELIST.iter().any(|url| (text[1..]).starts_with(url))) || URL_WHITELIST.iter().any(|url| text.starts_with(url)) {
                 log::info!("Video downloaded");
                 let prepping_msg = bot.send_message(msg.chat.id, "Prepping the video...").await;
                 let user_id = msg.from.as_ref().map(|user| user.id).unwrap();
-                let sent = download(text, user_id).await.unwrap();
+                let delete_msg = !text.starts_with("!");
+                let url = if let Some(stripped) = text.strip_prefix("!") {
+                    stripped
+                } else {
+                    text
+                };
+                let sent = download(url, user_id).await.unwrap();
 
                 match sent {
                     true => {
@@ -52,6 +58,9 @@ async fn main() -> Result<()> {
                 };
                 if let Ok(prepping_msg) = prepping_msg {
                     bot.delete_message(msg.chat.id, prepping_msg.id).await.ok();
+                    if delete_msg {
+                        bot.delete_message(msg.chat.id, msg.id).await.ok();
+                    }
                 }
             }
         };
